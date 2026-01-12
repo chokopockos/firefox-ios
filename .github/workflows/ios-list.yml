@@ -1,3 +1,10 @@
+name: iOS - list schemes
+
+on:
+  push:
+    branches: [ webxr ]
+  workflow_dispatch:
+
 jobs:
   list:
     runs-on: macos-14
