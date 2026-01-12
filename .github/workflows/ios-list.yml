@@ -1,4 +1,4 @@
-name: iOS - discover xcode project
+name: iOS - discover project path
 
 on:
   workflow_dispatch:
@@ -14,26 +14,30 @@ jobs:
           submodules: recursive
           lfs: true
 
-      - name: Debug
+      - name: Show branch/commit and root files
         run: |
           set -e
-          pwd
+          echo "PWD=$(pwd)"
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          echo "== git =="
           git rev-parse HEAD
+          git log -1 --oneline
           git branch --show-current || true
+          echo "== ls root =="
           ls -la
 
-      - name: Find Xcode files
+      - name: Find Xcode projects/workspaces
         run: |
           set -e
-          echo "xcodeproj:"
-          find . -maxdepth 5 -name "*.xcodeproj" -print || true
-          echo "xcworkspace:"
-          find . -maxdepth 5 -name "*.xcworkspace" -print || true
+          echo "== find *.xcodeproj =="
+          find . -maxdepth 6 -name "*.xcodeproj" -print || true
+          echo "== find *.xcworkspace =="
+          find . -maxdepth 6 -name "*.xcworkspace" -print || true
+          echo "== find Client.xcodeproj =="
+          find . -maxdepth 6 -name "Client.xcodeproj" -print || true
 
-      - name: List schemes for Client.xcodeproj (if found)
+      - name: Prove if Client.xcodeproj exists in git index
         run: |
           set -e
-          P=$(find . -maxdepth 5 -name "Client.xcodeproj" -print -quit)
-          echo "Client project: $P"
-          test -n "$P"
-          xcodebuild -list -project "$P"
+          echo "== git ls-files Client.xcodeproj =="
+          git ls-files | grep -i "client\.xcodeproj" || true
