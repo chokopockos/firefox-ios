@@ -1,4 +1,4 @@
-name: iOS - list schemes
+name: iOS - discover xcode project
 
 on:
   push:
@@ -6,18 +6,48 @@ on:
   workflow_dispatch:
 
 jobs:
-  list:
-    runs-on: macos-15-intel
+  discover:
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "16.4.0"
+          fetch-depth: 0
+          submodules: recursive
+          lfs: true
 
-      - name: Xcode version
-        run: xcodebuild -version
+      - name: Debug - where am I?
+        run: |
+          set -e
+          pwd
+          echo "== git =="
+          git rev-parse HEAD
+          git branch --show-current || true
+          echo "== top-level ls =="
+          ls -la
 
-      - name: List schemes
-        run: xcodebuild -list -project Client.xcodeproj
+      - name: Find Xcode files
+        run: |
+          set -e
+          echo "== xcworkspace =="
+          find . -maxdepth 5 -name "*.xcworkspace" -print || true
+          echo "== xcodeproj =="
+          find . -maxdepth 5 -name "*.xcodeproj" -print || true
+
+      - name: List schemes (try common locations)
+        run: |
+          set +e
+          if [ -d "Client.xcodeproj" ]; then
+            echo "Found ./Client.xcodeproj"
+            xcodebuild -list -project Client.xcodeproj
+            exit 0
+          fi
+
+          P=$(find . -maxdepth 5 -name "Client.xcodeproj" -print -quit)
+          if [ -n "$P" ]; then
+            echo "Found $P"
+            xcodebuild -list -project "$P"
+            exit 0
+          fi
+
+          echo "Client.xcodeproj not found anywhere"
+          exit 1
