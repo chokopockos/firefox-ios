@@ -1,0 +1,32 @@
+name: iOS - discover xcode files and schemes
+
+on:
+  push:
+    branches: [ webxr ]
+  workflow_dispatch:
+
+jobs:
+  list:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find Xcode files
+        run: |
+          echo "xcworkspace:"
+          find . -maxdepth 4 -name "*.xcworkspace" -print || true
+          echo "xcodeproj:"
+          find . -maxdepth 4 -name "*.xcodeproj" -print || true
+
+      - name: List schemes
+        run: |
+          set +e
+          for w in $(find . -maxdepth 4 -name "*.xcworkspace"); do
+            echo "=== $w ==="
+            xcodebuild -list -workspace "$w" || true
+          done
+          for p in $(find . -maxdepth 4 -name "*.xcodeproj"); do
+            echo "=== $p ==="
+            xcodebuild -list -project "$p" || true
+          done
+          true
