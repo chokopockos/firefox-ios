@@ -1,10 +1,12 @@
-name: iOS - discover project path
+name: iOS - build XRViewer (Simulator)
 
 on:
+  push:
+    branches: [ webxr ]
   workflow_dispatch:
 
 jobs:
-  discover:
+  build:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -14,30 +16,47 @@ jobs:
           submodules: recursive
           lfs: true
 
-      - name: Show branch/commit and root files
-        run: |
-          set -e
-          echo "PWD=$(pwd)"
-          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
-          echo "== git =="
-          git rev-parse HEAD
-          git log -1 --oneline
-          git branch --show-current || true
-          echo "== ls root =="
-          ls -la
+      - name: Setup Xcode 15.4
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "15.4"
 
-      - name: Find Xcode projects/workspaces
-        run: |
-          set -e
-          echo "== find *.xcodeproj =="
-          find . -maxdepth 6 -name "*.xcodeproj" -print || true
-          echo "== find *.xcworkspace =="
-          find . -maxdepth 6 -name "*.xcworkspace" -print || true
-          echo "== find Client.xcodeproj =="
-          find . -maxdepth 6 -name "Client.xcodeproj" -print || true
+      - name: Xcode version
+        run: xcodebuild -version
 
-      - name: Prove if Client.xcodeproj exists in git index
+      - name: List schemes (sanity)
+        run: xcodebuild -list -project Client.xcodeproj
+
+      # Часто firefox-ios требует Carthage. Если сборка упадёт на "missing frameworks" —
+      # этот шаг обязателен. Если Carthage не нужен, он просто потратит время.
+      - name: Install Carthage
+        run: |
+          brew update
+          brew install carthage
+
+      - name: Carthage bootstrap (best effort)
         run: |
           set -e
-          echo "== git ls-files Client.xcodeproj =="
-          git ls-files | grep -i "client\.xcodeproj" || true
+          # пробуем современный режим
+          carthage bootstrap --platform iOS --cache-builds --use-xcframeworks || \
+          # если старое — пробуем без xcframeworks
+          carthage bootstrap --platform iOS --cache-builds
+
+      - name: Build XRViewer (Simulator, no signing)
+        run: |
+          set -e
+          xcodebuild \
+            -project Client.xcodeproj \
+            -scheme XRViewer \
+            -configuration Release \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            build
+
+      - name: Upload build products
+        uses: actions/upload-artifact@v4
+        with:
+          name: XRViewer-Release-iphonesimulator
+          path: build/DerivedData/Build/Products/Release-iphonesimulator/
