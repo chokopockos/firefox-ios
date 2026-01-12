@@ -1,8 +1,6 @@
 name: iOS - discover xcode project
 
 on:
-  push:
-    branches: [ webxr ]
   workflow_dispatch:
 
 jobs:
@@ -11,43 +9,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: webxr
           fetch-depth: 0
           submodules: recursive
           lfs: true
 
-      - name: Debug - where am I?
+      - name: Debug
         run: |
           set -e
           pwd
-          echo "== git =="
           git rev-parse HEAD
           git branch --show-current || true
-          echo "== top-level ls =="
           ls -la
 
       - name: Find Xcode files
         run: |
           set -e
-          echo "== xcworkspace =="
-          find . -maxdepth 5 -name "*.xcworkspace" -print || true
-          echo "== xcodeproj =="
+          echo "xcodeproj:"
           find . -maxdepth 5 -name "*.xcodeproj" -print || true
+          echo "xcworkspace:"
+          find . -maxdepth 5 -name "*.xcworkspace" -print || true
 
-      - name: List schemes (try common locations)
+      - name: List schemes for Client.xcodeproj (if found)
         run: |
-          set +e
-          if [ -d "Client.xcodeproj" ]; then
-            echo "Found ./Client.xcodeproj"
-            xcodebuild -list -project Client.xcodeproj
-            exit 0
-          fi
-
+          set -e
           P=$(find . -maxdepth 5 -name "Client.xcodeproj" -print -quit)
-          if [ -n "$P" ]; then
-            echo "Found $P"
-            xcodebuild -list -project "$P"
-            exit 0
-          fi
-
-          echo "Client.xcodeproj not found anywhere"
-          exit 1
+          echo "Client project: $P"
+          test -n "$P"
+          xcodebuild -list -project "$P"
